@@ -292,20 +292,43 @@ const evaluateSubmissionWithAI = async (req, res) => {
             return res.status(mapped.statusCode).json({ message: mapped.message });
         }
 
-        const studentText = await extractText(studentBuffer, { filename: fileUrl });
+        let studentText = "";
+        try {
+            studentText = await extractText(studentBuffer, { filename: fileUrl });
+        } catch (e) {
+            console.error("Text extraction failed, falling back to sending file buffer:", e);
+        }
+        
+        let mimeType = "application/pdf";
+        if (fileUrl.toLowerCase().endsWith(".png")) mimeType = "image/png";
+        else if (fileUrl.toLowerCase().endsWith(".jpg") || fileUrl.toLowerCase().endsWith(".jpeg")) mimeType = "image/jpeg";
+        else if (fileUrl.toLowerCase().endsWith(".txt")) mimeType = "text/plain";
+
         const ai = await evaluateSolution({
             assignmentTitle: assignment?.title,
             assignmentPrompt: assignment?.description,
             studentAnswerText: studentText,
+            studentBuffer: studentBuffer,
+            mimeType: mimeType
         });
 
         submission.aiScore = ai.score;
         submission.aiFeedback = ai.feedback;
         submission.isEvaluated = true;
         submission.evaluated = true;
+        submission.evaluating = false;
         submission.marks = ai.score;
         submission.feedback = String(ai.feedback || '').split('\n').filter(Boolean);
-        await submission.save();
+        
+        try {
+            await submission.save();
+        } catch (saveError) {
+            if (saveError.name === 'VersionError') {
+                console.warn('[submission/evaluate-ai] VersionError ignored, submission evaluated by concurrent request.');
+                return res.json({ message: 'AI evaluation completed concurrently', submission });
+            }
+            throw saveError;
+        }
 
         console.log('[submission/evaluate-ai] Response sent', {
             submissionId: submission._id,
@@ -375,10 +398,13 @@ const evaluateNextInQueue = async (req, res) => {
         const assignments = await Assignment.find({ classroom: classroomId }).select('_id title description');
         const assignmentIds = assignments.map((assignment) => assignment._id);
 
-        const submission = await Submission.findOne({
+        // Use findOneAndUpdate to atomically set an evaluating flag
+        // to prevent race conditions with other evaluate calls.
+        const submission = await Submission.findOneAndUpdate({
             assignment: { $in: assignmentIds },
             isEvaluated: false,
-        }).sort({ createdAt: 1 });
+            $or: [{ evaluating: { $exists: false } }, { evaluating: false }]
+        }, { $set: { evaluating: true } }, { new: true, sort: { createdAt: 1 } });
 
         if (!submission) {
             return res.json({ message: 'No pending submissions to evaluate', submission: null });
@@ -407,20 +433,43 @@ const evaluateNextInQueue = async (req, res) => {
             return res.status(mapped.statusCode).json({ message: mapped.message });
         }
 
-        const studentText = await extractText(studentBuffer, { filename: fileUrl });
+        let studentText = "";
+        try {
+            studentText = await extractText(studentBuffer, { filename: fileUrl });
+        } catch (e) {
+            console.error("Text extraction failed, falling back to sending file buffer:", e);
+        }
+
+        let mimeType = "application/pdf";
+        if (fileUrl.toLowerCase().endsWith(".png")) mimeType = "image/png";
+        else if (fileUrl.toLowerCase().endsWith(".jpg") || fileUrl.toLowerCase().endsWith(".jpeg")) mimeType = "image/jpeg";
+        else if (fileUrl.toLowerCase().endsWith(".txt")) mimeType = "text/plain";
+
         const ai = await evaluateSolution({
             assignmentTitle: assignment?.title,
             assignmentPrompt: assignment?.description,
             studentAnswerText: studentText,
+            studentBuffer: studentBuffer,
+            mimeType: mimeType
         });
 
         submission.aiScore = ai.score;
         submission.aiFeedback = ai.feedback;
         submission.isEvaluated = true;
         submission.evaluated = true;
+        submission.evaluating = false;
         submission.marks = ai.score;
         submission.feedback = String(ai.feedback || '').split('\n').filter(Boolean);
-        await submission.save();
+        
+        try {
+            await submission.save();
+        } catch (saveError) {
+            if (saveError.name === 'VersionError') {
+                console.warn('[submission/evaluate-next] VersionError ignored, submission evaluated by concurrent request.');
+                return res.json({ message: 'AI evaluation completed concurrently', submission });
+            }
+            throw saveError;
+        }
 
         console.log('[submission/evaluate-next] Response sent', {
             submissionId: submission._id,

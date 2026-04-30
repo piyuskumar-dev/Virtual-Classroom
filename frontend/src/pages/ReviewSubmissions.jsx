@@ -106,7 +106,7 @@ const ReviewSubmissions = () => {
             isMounted = false;
             clearLoadingFallbackTimer();
         };
-    }, [assignmentId, BACKEND_URL, token, user, navigate]);
+    }, [assignmentId, BACKEND_URL, token, user?.role, navigate]);
 
     const refreshSubmissions = async () => {
         if (!assignmentId) return;
@@ -324,14 +324,6 @@ const ReviewSubmissions = () => {
                                                             View File
                                                         </button>
                                                     )}
-                                                    <button
-                                                        className="gc-btn gc-btn-text"
-                                                        style={{ padding: "4px 8px" }}
-                                                        onClick={() => handleEvaluate(s)}
-                                                        disabled={evaluating}
-                                                    >
-                                                        Grade with AI
-                                                    </button>
                                                 </td>
                                             </tr>
                                         ))

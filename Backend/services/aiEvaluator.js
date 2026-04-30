@@ -20,7 +20,7 @@ function mockEvaluate({ assignmentTitle, assignmentPrompt, studentAnswerText }) 
   return { score, feedback };
 }
 
-async function geminiEvaluate({ assignmentTitle, assignmentPrompt, studentAnswerText }) {
+async function geminiEvaluate({ assignmentTitle, assignmentPrompt, studentAnswerText, studentBuffer, mimeType }) {
   const prompt = `
 You are a strict but fair teacher.
 
@@ -44,10 +44,10 @@ ASSIGNMENT PROMPT:
 ${assignmentPrompt || ""}
 
 STUDENT SOLUTION:
-${studentAnswerText || ""}
+${studentAnswerText || (studentBuffer ? "Attached as file." : "")}
 `;
 
-  const raw = await callGeminiAPI(prompt);
+  const raw = await callGeminiAPI(prompt, null, studentBuffer, mimeType);
   const clean = String(raw || "").replace(/```json|```/g, "").trim();
   const jsonMatch = clean.match(/\{[\s\S]*\}/);
 

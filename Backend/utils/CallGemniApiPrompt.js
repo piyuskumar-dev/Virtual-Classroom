@@ -9,7 +9,7 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash-exp";
  * @param {string} [systemInstruction] - Optional system instruction override
  * @returns {Promise<string|null>} The generated text response
  */
-async function callGeminiAPI(prompt, systemInstruction = null) {
+async function callGeminiAPI(prompt, systemInstruction = null, fileBuffer = null, mimeType = "application/pdf") {
     if (typeof fetch !== "function") {
         throw new Error("Use Node.js 18+ or add a fetch polyfill.");
     }
@@ -42,13 +42,22 @@ async function callGeminiAPI(prompt, systemInstruction = null) {
             contents: [
                 {
                     role: "user",
-                    parts: [{ text: prompt }],
+                    parts: [
+                        ...(fileBuffer ? [{
+                            inlineData: {
+                                mimeType: mimeType,
+                                data: fileBuffer.toString("base64"),
+                            }
+                        }] : []),
+                        { text: prompt },
+                    ],
                 },
             ],
             generationConfig: {
                 temperature: 0.3,
                 topP: 0.8,
                 maxOutputTokens: 2048,
+                responseMimeType: "application/json",
             },
         }),
     });

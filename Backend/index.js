@@ -32,7 +32,7 @@ const port = process.env.PORT || 4000;
 // CORS configuration - allow specific origins in production
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(url => url.trim())
-  : ['http://localhost:5173', 'http://localhost:3000'];
+  : ['http://localhost:5173', 'http://localhost:3000', 'https://virtual-classroom-gray.vercel.app/', 'https://virtual-classroom-gray.vercel.app'];
 
 const corsOptions = {
   origin: function (origin, callback) {

@@ -1,6 +1,7 @@
 {
   "scripts": {
     "server": "nodemon index.js",
+    "start": "node index.js",
     "build": "npm i"
   },
   "dependencies": {
